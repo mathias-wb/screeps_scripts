@@ -15,19 +15,19 @@ module.exports.loop = function () {
             // checks whether creep is idle, and assigns it a task to be done until completion
             if (creep.memory.mode == "💤") {
                 if (creep.store.energy < creep.store.getCapacity(RESOURCE_ENERGY)) {
-                    creep.memory.mode = "👩🏻‍🌾"  // harvest energy
+                    creep.memory.mode = "⚡️"  // harvest energy
                 } else if (creep.store.energy == creep.store.getCapacity(RESOURCE_ENERGY)) {
                     creep.memory.mode = "🔋"  // store energy
                 }
             }
 
-            if (creep.memory.mode == "👩🏻‍🌾") {
+            if (creep.memory.mode == "⚡️") {
                 creep.say(creep.memory.mode.concat(creep.store.energy, "/", creep.store.getCapacity()))
                 if (creep.store.energy < creep.store.getCapacity(RESOURCE_ENERGY)) {
                     energy_source = room.find(FIND_SOURCES)[0]
                     if (creep.harvest(energy_source, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
                         creep.moveTo(energy_source);
-                        creep.say(creep.memory.mode.concat("🚶‍♂️⚡"))
+                        creep.say(creep.memory.mode.concat("🚶‍♂️📍"))
                     }
                 } else {
                     creep.memory.mode = "💤"
@@ -54,4 +54,11 @@ module.exports.loop = function () {
             }
         }
     }
+
+    for(let i in Memory.creeps) {
+        if(!Game.creeps[i]) {
+            delete Memory.creeps[i];
+        }
+    }
+    
 }
