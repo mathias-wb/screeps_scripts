@@ -5,7 +5,7 @@ const energy_sources = room.find(FIND_SOURCES);
 
 const creepCount = {
     "harvester": 4,
-    "builder": 1
+    "builder": 2
 }
 
 module.exports.loop = function () {
@@ -51,21 +51,36 @@ module.exports.loop = function () {
             creep.say(creep.memory.mode.concat(Math.floor((creep.store.energy / creep.store.getCapacity())*100), "%"));
             if (creep.store.energy < creep.store.getCapacity(RESOURCE_ENERGY)) {
                 if (creep.harvest(energy_sources[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(energy_sources[0]);
+                    creep.moveTo(energy_sources[0],{
+                        visualizePathStyle: {
+                            stroke: "#FFFF68",
+                            strokeWidth: 0.1,
+                            opacity: 0.2,
+                            lineStyle: "dashed" // or 'solid'
+                        }
+                    });
                     creep.say(creep.memory.mode.concat("🚶‍♂️📍"));
                 }
             } else {
                 creep.memory.mode = "💤";
             }
+             
         }
 
         // filling up energy storage
         if (creep.memory.mode == "🔋") {
             creep.say(creep.memory.mode.concat(Math.floor((creep.store.energy / creep.store.getCapacity())*100), "%"));
+
             var extensions = room.find(FIND_STRUCTURES, {
                 filter: (s) => s.structureType === STRUCTURE_EXTENSION
             });
             var emptyExtensions = extensions.filter(ext => ext.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
+
+            var containers = room.find(FIND_STRUCTURES, {
+                filter: (s) => s.structureType === STRUCTURE_CONTAINER
+            });
+            var emptyContainers = containers.filter(con => con.store.getFreeCapacity(RESOURCE_ENERGY) > 0);
+
             if (home.store[RESOURCE_ENERGY] < home.store.getCapacity(RESOURCE_ENERGY)) {
                 if (creep.transfer(home, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
                     creep.moveTo(home,{
@@ -90,7 +105,20 @@ module.exports.loop = function () {
                             lineStyle: "dashed" // or 'solid'
                         }
                     });
-                    creep.say(creep.memory.mode.concat("🚶‍♂️🎮"));
+                    creep.say(creep.memory.mode.concat("🚶‍♂️💡"));
+                }
+
+            } else if (emptyContainers.length > 0) {
+                if (creep.transfer(emptyContainers[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(emptyContainers[0],{
+                        visualizePathStyle: {
+                            stroke: "#FFFF68",
+                            strokeWidth: 0.1,
+                            opacity: 0.2,
+                            lineStyle: "dashed" // or 'solid'
+                        }
+                    });
+                    creep.say(creep.memory.mode.concat("📦"));
                 }
 
             } else {
@@ -109,15 +137,16 @@ module.exports.loop = function () {
 
             if (creep.store[RESOURCE_ENERGY] == 0) {
                 creep.memory.mode = "💤";
+                creep.say(creep.memory.mode)
             }
         }
 
         // building constructions
         if (creep.memory.mode == "🚧") {
             creep.say(creep.memory.mode.concat(Math.floor((creep.store.energy / creep.store.getCapacity())*100), "%"));
-            let construction = room.find(FIND_MY_CONSTRUCTION_SITES)[0];
-            if (creep.build(construction, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                creep.moveTo(construction,{
+            let constructions = room.find(FIND_MY_CONSTRUCTION_SITES);
+            if (creep.build(constructions[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(constructions[0],{
                     visualizePathStyle: {
                         stroke: "#FFFF68",
                         strokeWidth: 0.1,
@@ -126,10 +155,20 @@ module.exports.loop = function () {
                     }
                 });
                 creep.say(creep.memory.mode.concat("🚶‍♂️📍"));
+            } else if (constructions.length == 0) {
+                creep.moveTo(home,{
+                    visualizePathStyle: {
+                        stroke: "#FFFF68",
+                        strokeWidth: 0.1,
+                        opacity: 0.2,
+                        lineStyle: "dashed" // or 'solid'
+                    }
+                });
             }
 
             if (creep.store[RESOURCE_ENERGY] == 0) {
                 creep.memory.mode = "💤";
+                creep.say(creep.memory.mode)
             }
         }
     }
@@ -139,5 +178,4 @@ module.exports.loop = function () {
             delete Memory.creeps[i];
         }
     }
-
 }
