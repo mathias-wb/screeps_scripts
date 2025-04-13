@@ -7,7 +7,7 @@ const energySources = room.find(FIND_SOURCES);
 // Population targets
 const POPULATION = {
   miner: energySources.length, // One miner per source
-  harvester: 4,
+  harvester: 2,
   builder: 2
 };
 
@@ -18,14 +18,28 @@ const MODE = {
   mining: "⛏️",
   storing: "🔋",
   building: "🚧",
+  upgrading: "💹",
   collecting: "🧺"
+};
+
+// Currently can afford 550 max
+const PARTS = {
+  "move": 50,
+  "work": 100,
+  "carry": 50,
+  "attack": 80,
+  "ranged_attack": 150,
+  "heal": 250,
+  "claim": 600,
+  "tough": 10
 };
 
 // Body part templates
 const BODY = {
-  miner: [WORK, WORK, WORK, WORK, WORK, MOVE],  // Stationary with high harvest rate
-  harvester: [CARRY, CARRY, CARRY, MOVE, MOVE, MOVE], // TODO: Implement higher carry capacity
-  builder: [WORK, WORK, CARRY, CARRY, MOVE, MOVE]
+  miner: [WORK, WORK, WORK, WORK, WORK, MOVE],  // 550 energy (10 energy/second)
+  harvester: [CARRY, CARRY, CARRY, CARRY, WORK, MOVE, MOVE, MOVE, MOVE, MOVE],  // 550 energy
+  builder: [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE],  // 550 energy
+  upgrader: [WORK, WORK, WORK, WORK, MOVE, MOVE, MOVE]  // 550 energy
 };
 
 // Visualization settings
@@ -80,6 +94,9 @@ module.exports.loop = function () {
           break;
         case MODE.building:
           buildAndRepair(creep, room);
+          break;
+        case MODE.upgrading:
+          upgradeController(creep, room);
           break;
       }
     }
@@ -197,7 +214,7 @@ function runMiner(creep) {
   // If not in position, move to source
   if (creep.pos.getRangeTo(source) > 1) {
     creep.moveTo(source, { visualizePathStyle: PATH_STYLE });
-    creep.say(MODE.mining + "🚶‍♂️");
+    creep.say(MODE.mining + "🚶‍♂️📍");
     return;
   }
 
@@ -272,7 +289,7 @@ function collectFromMiner(creep, miners) {
       // Pick up the largest pile
       if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
         creep.moveTo(droppedResources[0], { visualizePathStyle: PATH_STYLE });
-        creep.say(MODE.collecting + "🚶‍♂️💎");
+        creep.say(MODE.collecting + "🚶‍♂️⚡");
       }
       return;
     }
@@ -387,10 +404,17 @@ function storeEnergy(creep, home, room, storage) {
     message = "🚶‍♂️🎮";
   }
 
+  creep.say(creep.memory.mode + message)
+
   // Move to target and transfer energy
-  if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-    creep.moveTo(target, { visualizePathStyle: PATH_STYLE });
-    creep.say(creep.memory.mode + message);
+  if (target !== controller) {
+    if (creep.transfer(target, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(target, { visualizePathStyle: PATH_STYLE });
+    } 
+  } else {
+    if (creep.upgradeController(controller) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(controller, { visualizePathStyle: PATH_STYLE });
+    }
   }
 }
 
@@ -448,8 +472,13 @@ function buildAndRepair(creep, room) {
     minerContainers.push(...sites);
   }
 
-  // Repair has priority over building
-  if (damagedStructures.length > 0) {
+  // Priority: 1. Construction, 2. Repair
+  if (constructions.length > 0) {
+    if (creep.build(constructions[0]) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(constructions[0], { visualizePathStyle: PATH_STYLE });
+      creep.say(creep.memory.mode + "🚶‍♂️📍");
+    }
+  } else if (damagedStructures.length > 0) {
     if (creep.repair(damagedStructures[0]) === ERR_NOT_IN_RANGE) {
       creep.moveTo(damagedStructures[0], { visualizePathStyle: PATH_STYLE });
       creep.say(creep.memory.mode + "🚶‍♂️🔧");
@@ -459,11 +488,6 @@ function buildAndRepair(creep, room) {
     if (creep.build(minerContainers[0]) === ERR_NOT_IN_RANGE) {
       creep.moveTo(minerContainers[0], { visualizePathStyle: PATH_STYLE });
       creep.say(creep.memory.mode + "🚶‍♂️📦");
-    }
-  } else if (constructions.length > 0) {
-    if (creep.build(constructions[0]) === ERR_NOT_IN_RANGE) {
-      creep.moveTo(constructions[0], { visualizePathStyle: PATH_STYLE });
-      creep.say(creep.memory.mode + "🚶‍♂️📍");
     }
   } else {
     creep.memory.mode = MODE.idle;
