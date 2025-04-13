@@ -1,15 +1,15 @@
 // Core references
-const home = Game.spawns["Home"];
-const room = Game.rooms["E15N11"];
-const controller = home.room.controller;
-const energySources = room.find(FIND_SOURCES);
+var home = Game.spawns["Home"];
+var room = Game.rooms["E15N11"];
+var controller = home.room.controller;
+var energySources = room.find(FIND_SOURCES);
 
 // Population targets
 const POPULATION = {
   miner: energySources.length, // One miner per source
   harvester: 2,
-  builder: 2,
-  upgrader: 1 // New dedicated upgrader role
+  builder: 1,
+  upgrader: 2 // New dedicated upgrader role
 };
 
 // Mode symbols for visualization
@@ -40,6 +40,12 @@ const PATH_STYLE = {
 };
 
 module.exports.loop = function () {
+  // Core references
+  home = Game.spawns["Home"];
+  room = Game.rooms["E15N11"];
+  controller = home.room.controller;
+  energySources = room.find(FIND_SOURCES);
+
   // Get all creeps and group by role
   const creeps = room.find(FIND_MY_CREEPS);
   const miners = creeps.filter(creep => creep.memory.role === "miner");
@@ -58,12 +64,58 @@ module.exports.loop = function () {
   // Assign miners to energy sources if needed
   assignMinersToSources(miners, energySources);
 
+  // Assign harvesters to miners if needed
+  assignHarvestersToMiners(harvesters, miners);
+
   // Process each creep's behavior
   processCreeps(creeps, miners, storage);
 
   // Clean up memory for dead creeps
   cleanupMemory();
 };
+
+function assignHarvestersToMiners(harvesters, miners) {
+  // Skip if we don't have enough miners yet
+  if (miners.length === 0) return;
+  
+  // Create an array to track which miners have harvesters assigned
+  const minerHasHarvester = Array(miners.length).fill(false);
+  
+  // Mark miners that already have harvesters assigned
+  harvesters.forEach(harvester => {
+    if (harvester.memory.assignedMinerId) {
+      // Find the index of this miner in our miners array
+      const minerIndex = miners.findIndex(miner => miner.id === harvester.memory.assignedMinerId);
+      if (minerIndex >= 0) {
+        minerHasHarvester[minerIndex] = true;
+      }
+    }
+  });
+  
+  // Assign unassigned harvesters to miners that need harvesters
+  harvesters.forEach(harvester => {
+    if (!harvester.memory.assignedMinerId) {
+      // Find first miner without a harvester
+      const minerIndex = minerHasHarvester.indexOf(false);
+      if (minerIndex >= 0) {
+        harvester.memory.assignedMinerId = miners[minerIndex].id;
+        minerHasHarvester[minerIndex] = true;
+      }
+    }
+  });
+  
+  // If we have more harvesters than miners, distribute them evenly
+  // This handles cases where we have 3 harvesters but only 2 miners
+  if (harvesters.length > miners.length) {
+    let counter = 0;
+    harvesters.forEach(harvester => {
+      if (!harvester.memory.assignedMinerId) {
+        harvester.memory.assignedMinerId = miners[counter % miners.length].id;
+        counter++;
+      }
+    });
+  }
+}
 
 function spawnCreepsIfNeeded(miners, harvesters, builders, upgraders) {
   // First priority: miners (they produce the energy)
@@ -283,7 +335,52 @@ function collectFromMiner(creep, miners) {
 
   // Display energy percentage
   creep.say(MODE.collecting + getEnergyPercent(creep) + "%");
-
+  
+  // First try to find the assigned miner
+  let assignedMiner = null;
+  if (creep.memory.assignedMinerId) {
+    assignedMiner = Game.getObjectById(creep.memory.assignedMinerId);
+  }
+  
+  // If our assigned miner exists, focus on it
+  if (assignedMiner) {
+    // First check for containers near assigned miner
+    const containers = assignedMiner.pos.findInRange(FIND_STRUCTURES, 1, {
+      filter: s => s.structureType === STRUCTURE_CONTAINER &&
+        s.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+    });
+    
+    if (containers.length > 0) {
+      if (creep.withdraw(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(containers[0], { visualizePathStyle: PATH_STYLE });
+        creep.say(MODE.collecting + "🚶‍♂️");
+      }
+      return;
+    }
+    
+    // Next check for dropped energy near assigned miner
+    const droppedResources = assignedMiner.pos.findInRange(FIND_DROPPED_RESOURCES, 1);
+    
+    if (droppedResources.length > 0) {
+      if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
+        creep.moveTo(droppedResources[0], { visualizePathStyle: PATH_STYLE });
+        creep.say(MODE.collecting + "🚶‍♂️");
+      }
+      return;
+    }
+    
+    // Try to get energy directly from assigned miner
+    if (assignedMiner.store.energy > 0) {
+      if (creep.pos.isNearTo(assignedMiner)) {
+        assignedMiner.transfer(creep, RESOURCE_ENERGY);
+      } else {
+        creep.moveTo(assignedMiner, { visualizePathStyle: PATH_STYLE });
+        creep.say(MODE.collecting + "🚶‍♂️");
+      }
+      return;
+    }
+  }
+  
   // First check for containers near miners
   const minerContainers = [];
   for (const miner of miners) {
