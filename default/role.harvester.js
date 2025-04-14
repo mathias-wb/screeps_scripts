@@ -207,11 +207,16 @@ module.exports = {
                 s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
 
+        const towers = creep.room.find(FIND_MY_STRUCTURES, {
+            filter: s => s.structureType === STRUCTURE_TOWER &&
+            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        });
+
         // Sort storage by energy (least first to distribute evenly)
         const emptyStorage = storage.filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
             .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY));
 
-        // Energy delivery priority: 1. Spawn 2. Extensions 3. Storage 4. Controller
+        // Energy delivery priority: 1. Spawn 2. Extensions 3. Tower 4. Storage 5. Controller
         let target = null;
 
         // Check if spawn needs energy (using fresh reference)
@@ -219,6 +224,8 @@ module.exports = {
             target = spawn;
         } else if (extensions.length > 0) {
             target = extensions[0];
+        } else if (towers.length > 0) {
+            target = towers[0];
         } else if (emptyStorage.length > 0) {
             target = emptyStorage[0];
         } else {
