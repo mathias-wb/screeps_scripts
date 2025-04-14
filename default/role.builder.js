@@ -61,12 +61,6 @@ module.exports = {
                 }
             }
         }
-
-        // If no storage with energy, harvest directly
-        const source = energySources[0]; // Default to first source
-        if (creep.harvest(source) === ERR_NOT_IN_RANGE) {
-            creepHelper.moveTo(creep, source);
-        }
     },
     
     /**

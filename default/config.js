@@ -11,7 +11,7 @@ module.exports = {
         harvester: 2,
         builder: 2,
         upgrader: 2,
-        explorer: 0
+        explorer: 1
     },
     
     // Creep body part configurations
