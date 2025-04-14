@@ -11,9 +11,7 @@ module.exports = {
         // If no mode is set, set to exploring
         if (!creep.memory.mode || creep.memory.mode === config.MODE.idle) {
             creep.memory.mode = config.MODE.exploring;
-            // Initialize room tracking
-            creep.memory.visitedRooms = creep.memory.visitedRooms || {};
-            creep.memory.currentGoal = "findDeposit"; // Goals: findDeposit, harvestDeposit, returnHome
+            creep.memory.currentGoal = "findIntersection"; // Goals: findIntersection, followLine, findDeposit, harvestDeposit, returnHome
         }
         
         switch (creep.memory.mode) {
@@ -41,108 +39,79 @@ module.exports = {
             return;
         }
         
-        // Track current room as visited
-        creep.memory.visitedRooms = creep.memory.visitedRooms || {};
-        creep.memory.visitedRooms[creep.room.name] = (creep.memory.visitedRooms[creep.room.name] || 0) + 1;
-        
-        // Handling based on current goal
-        if (creep.memory.currentGoal === "findDeposit") {
-            // Check for deposits in current room
-            const deposits = creep.room.find(FIND_DEPOSITS, {
-                filter: (d) => d.cooldown === 0
-            });
+        if (creep.memory.currentGoal === "findIntersection") {
+            const currentCoords = this.parseRoomName(creep.room.name);
+            // Find closest intersection (room with coordinates divisible by 10)
+            const targetCoords = this.findClosestIntersection(currentCoords.x, currentCoords.y);
+            const targetRoom = `${targetCoords.xDir}${targetCoords.x}${targetCoords.yDir}${targetCoords.y}`;
             
+            if (creep.room.name === targetRoom) {
+                creep.memory.currentGoal = "followLine";
+                creep.memory.direction = Math.random() < 0.5 ? "horizontal" : "vertical";
+            } else {
+                creep.memory.targetRoom = targetRoom;
+                const exitDir = creep.room.findExitTo(creep.memory.targetRoom);
+                const exit = creep.pos.findClosestByRange(exitDir);
+                creepHelper.moveTo(creep, exit);
+            }
+        }
+        
+        if (creep.memory.currentGoal === "followLine") {
+            const deposits = creep.room.find(FIND_DEPOSITS);
             if (deposits.length > 0) {
-                // Found deposits, switch to harvesting them
                 creep.memory.currentGoal = "harvestDeposit";
                 creep.memory.depositId = deposits[0].id;
-            } else {
-                // No deposits, find a new room to explore
-                this.selectNewTargetRoom(creep);
+                return;
             }
+            
+            const coords = this.parseRoomName(creep.room.name);
+            let nextRoom;
+            
+            if (creep.memory.direction === "horizontal") {
+                nextRoom = `${coords.xDir}${coords.x + 10}${coords.yDir}${coords.y}`;
+            } else {
+                nextRoom = `${coords.xDir}${coords.x}${coords.yDir}${coords.y + 10}`;
+            }
+            
+            creep.memory.targetRoom = nextRoom;
+            const exitDir = creep.room.findExitTo(creep.memory.targetRoom);
+            const exit = creep.pos.findClosestByRange(exitDir);
+            creepHelper.moveTo(creep, exit);
         }
         
         if (creep.memory.currentGoal === "harvestDeposit") {
             const deposit = Game.getObjectById(creep.memory.depositId);
             
-            // If deposit still exists and is ready
             if (deposit && deposit.cooldown === 0) {
                 if (creep.harvest(deposit) === ERR_NOT_IN_RANGE) {
                     creepHelper.moveTo(creep, deposit);
                 }
             } else {
-                // Deposit is gone or on cooldown
-                creep.memory.currentGoal = "findDeposit";
+                creep.memory.currentGoal = "findIntersection";
                 delete creep.memory.depositId;
             }
         }
-        
-        // Move to target room if needed
-        if (creep.memory.targetRoom && creep.room.name !== creep.memory.targetRoom) {
-            const exitDir = creep.room.findExitTo(creep.memory.targetRoom);
-            const exit = creep.pos.findClosestByRange(exitDir);
-            creepHelper.moveTo(creep, exit);
-        }
     },
     
-    /**
-     * Select a new room to explore with reduced chance of revisiting recent rooms
-     * @param {Creep} creep - The explorer creep
-     */
-    selectNewTargetRoom: function(creep) {
-        const availableExits = Game.map.describeExits(creep.room.name);
-        const exitRooms = Object.values(availableExits);
-        
-        // Score each exit room (lower score is better)
-        const roomScores = {};
-        
-        for (const room of exitRooms) {
-            // Start with base score
-            let score = 100;
-            
-            // Penalize rooms we've visited before
-            if (creep.memory.visitedRooms[room]) {
-                score += creep.memory.visitedRooms[room] * 50;
-            }
-            
-            // Avoid the room we just came from
-            if (creep.memory.prevRoom === room) {
-                score += 200;
-            }
-            
-            // Prefer highway rooms (rooms with one coordinate being 0)
-            const roomCoords = room.match(/[EW](\d+)[NS](\d+)/);
-            if (roomCoords) {
-                const x = parseInt(roomCoords[1]);
-                const y = parseInt(roomCoords[2]);
-                
-                // Highway rooms have x=0 or y=0
-                if (x % 10 === 0 || y % 10 === 0) {
-                    score -= 50;
-                }
-                
-                // Intersections are better (both x and y are multiples of 10)
-                if (x % 10 === 0 && y % 10 === 0) {
-                    score -= 50;
-                }
-            }
-            
-            roomScores[room] = score;
-        }
-        
-        // Sort rooms by score
-        const sortedRooms = Object.keys(roomScores).sort((a, b) => roomScores[a] - roomScores[b]);
-        
-        // Select the best room
-        if (sortedRooms.length > 0) {
-            creep.memory.prevRoom = creep.room.name;
-            creep.memory.targetRoom = sortedRooms[0];
-            
-            // Add some randomness so they don't all follow the same path
-            if (sortedRooms.length > 1 && Math.random() < 0.3) {
-                creep.memory.targetRoom = sortedRooms[1];
-            }
-        }
+    parseRoomName: function(roomName) {
+        const match = roomName.match(/([EW])(\d+)([NS])(\d+)/);
+        return {
+            xDir: match[1],
+            x: parseInt(match[2]),
+            yDir: match[3],
+            y: parseInt(match[4])
+        };
+    },
+    
+    findClosestIntersection: function(x, y) {
+        const targetX = Math.round(x / 10) * 10;
+        const targetY = Math.round(y / 10) * 10;
+        return {
+            x: targetX,
+            y: targetY,
+            xDir: x >= 0 ? 'E' : 'W',
+            yDir: y >= 0 ? 'N' : 'S'
+        };
     },
     
     /**
@@ -155,7 +124,7 @@ module.exports = {
         // Switch back to exploring if empty
         if (creep.store.getUsedCapacity() === 0) {
             creep.memory.mode = config.MODE.exploring;
-            creep.memory.currentGoal = "findDeposit";
+            creep.memory.currentGoal = "findIntersection";
             delete creep.memory.targetRoom;
             return;
         }
