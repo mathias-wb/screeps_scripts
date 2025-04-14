@@ -213,6 +213,14 @@ module.exports = {
         // Display energy status
         creepHelper.say(creep);
 
+        // If creep is empty, switch to collecting mode
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+            creep.memory.mode = config.MODE.collecting;
+            // Clear tower assignment when switching modes
+            delete creep.memory.assignedTowerId;
+            return;
+        }
+
         // IMPORTANT: Get a fresh reference to the spawn
         // This ensures we're checking current capacity, not cached data
         const spawn = Game.spawns[config.SPAWN_NAME];
@@ -223,16 +231,65 @@ module.exports = {
                 s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
 
-        const towers = creep.room.find(FIND_MY_STRUCTURES, {
+        // Get all towers that need energy
+        const allTowers = creep.room.find(FIND_MY_STRUCTURES, {
             filter: s => s.structureType === STRUCTURE_TOWER &&
-            s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
         });
+
+        // Get available towers (not already assigned to other harvesters)
+        const availableTowers = [];
+        
+        // Check if this creep already has an assigned tower
+        let assignedTower = null;
+        if (creep.memory.assignedTowerId) {
+            assignedTower = Game.getObjectById(creep.memory.assignedTowerId);
+            // If tower is full or no longer exists, clear assignment
+            if (!assignedTower || assignedTower.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+                delete creep.memory.assignedTowerId;
+                assignedTower = null;
+            }
+        }
+        
+        // If no assigned tower, find available towers
+        if (!assignedTower && allTowers.length > 0) {
+            // Get all harvester creeps
+            const harvesters = _.filter(Game.creeps, c => 
+                c.memory.role === 'harvester' && 
+                c.id !== creep.id && 
+                c.memory.assignedTowerId);
+            
+            // Create a map of tower IDs that are already assigned
+            const assignedTowerIds = {};
+            harvesters.forEach(h => {
+                if (h.memory.assignedTowerId) {
+                    assignedTowerIds[h.memory.assignedTowerId] = true;
+                }
+            });
+            
+            // Filter towers that aren't already assigned
+            for (const tower of allTowers) {
+                if (!assignedTowerIds[tower.id]) {
+                    availableTowers.push(tower);
+                }
+            }
+            
+            // Assign a tower if available
+            if (availableTowers.length > 0) {
+                // Find closest available tower
+                const closestTower = creep.pos.findClosestByPath(availableTowers);
+                if (closestTower) {
+                    creep.memory.assignedTowerId = closestTower.id;
+                    assignedTower = closestTower;
+                }
+            }
+        }
 
         // Sort storage by energy (least first to distribute evenly)
         const emptyStorage = storage.filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
             .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY));
 
-        // Energy delivery priority: 1. Spawn 2. Extensions 3. Towers 4. Storage 5. Controller
+        // Energy delivery priority: 1. Spawn 2. Extensions 3. Assigned Tower 4. Storage 5. Controller
         let target = null;
         let targetStructures = [];
 
@@ -241,13 +298,16 @@ module.exports = {
             targetStructures = [spawn];
         } else if (extensions.length > 0) {
             targetStructures = extensions;
-        } else if (towers.length > 0) {
-            targetStructures = towers;
+        } else if (assignedTower) {
+            // Use the assigned tower if it exists
+            targetStructures = [assignedTower];
         } else if (emptyStorage.length > 0) {
             targetStructures = emptyStorage;
         } else {
             // If nowhere to store, upgrade controller
-            this.upgradeController(creep);
+            creep.memory.mode = config.MODE.upgrading;
+            // Clear tower assignment when switching to upgrading
+            delete creep.memory.assignedTowerId;
             return;
         }
 
@@ -265,13 +325,20 @@ module.exports = {
         }
     },
     
-    
     /**
      * Upgrade the room controller
      * @param {Creep} creep - The harvester creep
      */
     upgradeController: function(creep) {
         creepHelper.say(creep);
+        
+        // If creep is empty, switch to collecting mode
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+            creep.memory.mode = config.MODE.collecting;
+            // Clear tower assignment when switching modes
+            delete creep.memory.assignedTowerId;
+            return;
+        }
         
         if (creep.upgradeController(creep.room.controller) === ERR_NOT_IN_RANGE) {
             creepHelper.moveTo(creep, creep.room.controller);

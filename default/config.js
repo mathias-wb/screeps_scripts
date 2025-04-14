@@ -17,10 +17,15 @@ module.exports = {
     BODY: {
         miner: [WORK, WORK, WORK, WORK, WORK,  // 500 (mines 10 energy/second)
             MOVE, MOVE, MOVE, MOVE, MOVE],  // + 250 = 750 energy
+
         harvester: [CARRY, CARRY, CARRY, CARRY, CARRY,  // 250
             WORK, WORK, // + 200
             MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],  // + 300 = 750 energy
-        builder: [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE],  // 550 energy
+
+        builder: [WORK, WORK, WORK, // 300
+            CARRY, CARRY, CARRY, // + 150
+            MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],  // + 300 = 750 energy
+
         upgrader: [WORK, WORK, WORK, // 300
             CARRY, CARRY, CARRY, // + 150
             MOVE, MOVE, MOVE, MOVE, MOVE, MOVE]  // + 300 = 750 energy
