@@ -36,9 +36,35 @@ module.exports = {
         }
 
         // Last priority: explorers (they find commodities)
-        if (explorers.length < config.POPULATION.explorer) {
+        // Only spawn an explorer if none exist and none are away from home
+        if (explorers.length < config.POPULATION.explorer && !this.isExplorerAway()) {
             this.spawnCreep("explorer", config.BODY.explorer);
         }
+    },
+    
+    /**
+     * Check if an explorer is away from home room
+     * @returns {boolean} True if an explorer is in another room
+     */
+    isExplorerAway: function() {
+        // Check Memory.creeps for explorers in other rooms
+        for (let name in Memory.creeps) {
+            const creepMemory = Memory.creeps[name];
+            if (creepMemory.role === "explorer" && creepMemory.homeRoom) {
+                // If creep exists and is in another room, it's away
+                const creep = Game.creeps[name];
+                if (creep && creep.room.name !== creepMemory.homeRoom) {
+                    return true;
+                }
+                
+                // If creep doesn't exist but memory shows it was exploring, it's away
+                if (!creep && creepMemory.currentGoal && 
+                    creepMemory.currentGoal !== "returnHome") {
+                    return true;
+                }
+            }
+        }
+        return false;
     },
     
     /**
