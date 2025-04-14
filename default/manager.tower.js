@@ -48,7 +48,7 @@ module.exports = {
                     // Don't waste energy repairing walls/ramparts above a certain threshold
                     if (structure.structureType === STRUCTURE_WALL || 
                         structure.structureType === STRUCTURE_RAMPART) {
-                        return structure.hits < Math.min(structure.hitsMax, 10000);
+                        return structure.hits < Math.min(structure.hitsMax, 50000);
                     }
                     return structure.hits < structure.hitsMax;
                 }
