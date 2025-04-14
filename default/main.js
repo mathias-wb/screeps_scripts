@@ -17,7 +17,8 @@ module.exports.loop = function() {
         gameState.miners, 
         gameState.harvesters, 
         gameState.builders, 
-        gameState.upgraders
+        gameState.upgraders,
+        gameState.explorers
     );
 
     // Run tower logic

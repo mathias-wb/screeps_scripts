@@ -22,6 +22,7 @@ module.exports = {
         const harvesters = creeps.filter(creep => creep.memory.role === "harvester");
         const builders = creeps.filter(creep => creep.memory.role === "builder");
         const upgraders = creeps.filter(creep => creep.memory.role === "upgrader");
+        const explorers = creeps.filter(creep => creep.memory.role === "explorer");
         
         // Get storage structures
         const storage = room.find(FIND_STRUCTURES, {
@@ -38,6 +39,7 @@ module.exports = {
             harvesters,
             builders,
             upgraders,
+            explorers,
             storage
         };
     },

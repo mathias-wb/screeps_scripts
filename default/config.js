@@ -10,7 +10,8 @@ module.exports = {
         miner: null, // One miner per source (set in room.manager)
         harvester: 2,
         builder: 2,
-        upgrader: 2
+        upgrader: 2,
+        explorer: 0
     },
     
     // Creep body part configurations
@@ -28,6 +29,10 @@ module.exports = {
 
         upgrader: [WORK, WORK, WORK, // 300
             CARRY, CARRY, CARRY, // + 150
+            MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],  // + 300 = 750 energy
+
+        explorer: [WORK, WORK, WORK, // 300
+            CARRY, CARRY, CARRY, // + 150
             MOVE, MOVE, MOVE, MOVE, MOVE, MOVE]  // + 300 = 750 energy
     },
     
@@ -39,7 +44,8 @@ module.exports = {
         storing: "📦",
         building: "🚧",
         upgrading: "📈",
-        collecting: "🧺"
+        collecting: "🧺",
+        exploring: "🔭"
     },
     
     // Visualization settings

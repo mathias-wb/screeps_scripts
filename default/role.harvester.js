@@ -101,22 +101,22 @@ module.exports = {
         }
 
         // First check for dropped energy near miners
-        const droppedResources = [];
-        for (const miner of miners) {
-            const resources = miner.pos.findInRange(FIND_DROPPED_RESOURCES, 2);
-            droppedResources.push(...resources);
-        }
+        // const droppedResources = [];
+        // for (const miner of miners) {
+        //     const resources = miner.pos.findInRange(FIND_DROPPED_RESOURCES, 2);
+        //     droppedResources.push(...resources);
+        // }
 
-        if (droppedResources.length > 0) {
-            // Sort by amount
-            droppedResources.sort((a, b) => b.amount - a.amount);
+        // if (droppedResources.length > 0) {
+        //     // Sort by amount
+        //     droppedResources.sort((a, b) => b.amount - a.amount);
 
-            // Pick up the largest pile
-            if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
-                creepHelper.moveTo(creep, droppedResources[0]);
-            }
-            return;
-        }
+        //     // Pick up the largest pile
+        //     if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
+        //         creepHelper.moveTo(creep, droppedResources[0]);
+        //     }
+        //     return;
+        // }
         
         // Then check for containers near miners
         const minerContainers = [];

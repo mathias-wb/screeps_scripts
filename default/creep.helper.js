@@ -37,7 +37,8 @@ module.exports = {
             creep.memory.mode === config.MODE.collecting ||
             creep.memory.mode === config.MODE.storing ||
             creep.memory.mode === config.MODE.building ||
-            creep.memory.mode === config.MODE.upgrading) {
+            creep.memory.mode === config.MODE.upgrading ||
+            creep.memory.mode === config.MODE.exploring) {
             message += this.getEnergyPercent(creep);
         }
         

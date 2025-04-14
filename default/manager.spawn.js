@@ -8,8 +8,9 @@ module.exports = {
      * @param {Array} harvesters - Array of harvester creeps
      * @param {Array} builders - Array of builder creeps
      * @param {Array} upgraders - Array of upgrader creeps
+     * @param {Array} explorers - Array of explorer creeps
      */
-    spawnCreepsIfNeeded: function(miners, harvesters, builders, upgraders) {
+    spawnCreepsIfNeeded: function(miners, harvesters, builders, upgraders, explorers) {
         // First priority: miners (they produce the energy)
         if (miners.length < config.POPULATION.miner) {
             this.spawnCreep("miner", config.BODY.miner);
@@ -28,9 +29,15 @@ module.exports = {
             return;
         }
 
-        // Last priority: builders (they construct and repair)
+        // Fourth priority: builders (they construct and repair)
         if (builders.length < config.POPULATION.builder) {
             this.spawnCreep("builder", config.BODY.builder);
+            return;
+        }
+
+        // Last priority: explorers (they find commodities)
+        if (explorers.length < config.POPULATION.explorer) {
+            this.spawnCreep("explorer", config.BODY.explorer);
         }
     },
     

@@ -4,6 +4,7 @@ const roleHarvester = require('role.harvester');
 const roleMiner = require('role.miner');
 const roleBuilder = require('role.builder');
 const roleUpgrader = require('role.upgrader');
+const roleExplorer = require('role.explorer');
 
 module.exports = {
     /**
@@ -33,6 +34,8 @@ module.exports = {
                 case "upgrader":
                     roleUpgrader.run(creep, storage);
                     break;
+                case "explorer":
+                    roleExplorer.run(creep)
             }
         }
     },
