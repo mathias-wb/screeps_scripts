@@ -216,22 +216,31 @@ module.exports = {
         const emptyStorage = storage.filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
             .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY));
 
-        // Energy delivery priority: 1. Spawn 2. Extensions 3. Tower 4. Storage 5. Controller
+        // Energy delivery priority: 1. Spawn 2. Extensions 3. Towers 4. Storage 5. Controller
         let target = null;
+        let targetStructures = [];
 
         // Check if spawn needs energy (using fresh reference)
         if (spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-            target = spawn;
+            targetStructures = [spawn];
         } else if (extensions.length > 0) {
-            target = extensions[0];
+            targetStructures = extensions;
         } else if (towers.length > 0) {
-            target = towers[0];
+            targetStructures = towers;
         } else if (emptyStorage.length > 0) {
-            target = emptyStorage[0];
+            targetStructures = emptyStorage;
         } else {
             // If nowhere to store, upgrade controller
             this.upgradeController(creep);
             return;
+        }
+
+        // Find the closest structure in the current priority category
+        target = creep.pos.findClosestByPath(targetStructures);
+                
+        if (!target) {
+            // Fallback to first structure if pathfinding fails
+            target = targetStructures[0];
         }
 
         // Move to target and transfer energy

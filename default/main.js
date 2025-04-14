@@ -3,6 +3,7 @@ const roleManager = require('manager.role');
 const spawnManager = require('manager.spawn');
 const memoryManager = require('manager.memory');
 const roomManager = require('manager.room');
+const towerManager = require("manager.tower");
 
 module.exports.loop = function() {
     // Initialize core game state
@@ -18,6 +19,9 @@ module.exports.loop = function() {
         gameState.builders, 
         gameState.upgraders
     );
+
+    // Run tower logic
+    towerManager.runAll();
     
     // Assign miners to energy sources if needed
     roleManager.assignMinersToSources(gameState.miners, gameState.energySources);
