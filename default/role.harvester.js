@@ -41,6 +41,12 @@ module.exports = {
 
         // Display energy percentage
         creepHelper.say(creep);
+
+        // If creep is full, switch to storing mode
+        if (creep.store.getFreeCapacity() === 0) {
+            creep.memory.mode = config.MODE.storing;
+            return;
+        }
         
         // First try to find the assigned miner
         let assignedMiner = null;
@@ -48,39 +54,49 @@ module.exports = {
             assignedMiner = Game.getObjectById(creep.memory.assignedMinerId);
         }
         
-        // If our assigned miner exists, focus on it
-        if (assignedMiner) {
-            // First check for containers near assigned miner
-            const containers = assignedMiner.pos.findInRange(FIND_STRUCTURES, 1, {
-                filter: s => s.structureType === STRUCTURE_CONTAINER &&
-                    s.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+        // Reassign miner if none assigned or periodically
+        if (!creep.memory.assignedMinerId || Game.time % 50 === 0) {
+            // Calculate scores for each miner
+            const minerScores = miners.map(miner => {
+                // Check for container energy
+                const containers = miner.pos.findInRange(FIND_STRUCTURES, 1, {
+                    filter: s => s.structureType === STRUCTURE_CONTAINER
+                });
+                const containerEnergy = containers.reduce((sum, c) => 
+                    sum + c.store.getUsedCapacity(RESOURCE_ENERGY), 0);
+                
+                // Check for dropped energy
+                const droppedEnergy = miner.pos.findInRange(FIND_DROPPED_RESOURCES, 1)
+                    .reduce((sum, r) => sum + r.amount, 0);
+                
+                // Calculate distance penalty (closer is better)
+                const distance = creep.pos.getRangeTo(miner);
+                const distanceFactor = Math.max(1, 10 - distance); // Higher for closer miners
+                
+                // Calculate total score (energy availability weighted by distance)
+                const totalEnergy = containerEnergy + droppedEnergy + miner.store.getUsedCapacity(RESOURCE_ENERGY);
+                const score = totalEnergy * distanceFactor;
+                
+                return {
+                    id: miner.id,
+                    score: score
+                };
             });
             
-            if (containers.length > 0) {
-                if (creep.withdraw(containers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creepHelper.moveTo(creep, containers[0]);
-                }
-                return;
-            }
+            // Filter out miners with no energy
+            const viableMiners = minerScores.filter(m => m.score > 0);
             
-            // Next check for dropped energy near assigned miner
-            const droppedResources = assignedMiner.pos.findInRange(FIND_DROPPED_RESOURCES, 1);
-            
-            if (droppedResources.length > 0) {
-                if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
-                    creepHelper.moveTo(creep, droppedResources[0]);
-                }
-                return;
-            }
-            
-            // Try to get energy directly from assigned miner
-            if (assignedMiner.store.energy > 0) {
-                if (creep.pos.isNearTo(assignedMiner)) {
-                    assignedMiner.transfer(creep, RESOURCE_ENERGY);
-                } else {
-                    creepHelper.moveTo(creep, assignedMiner);
-                }
-                return;
+            if (viableMiners.length > 0) {
+                // Sort by score (highest first)
+                viableMiners.sort((a, b) => b.score - a.score);
+                
+                // Select from top 3 miners (or fewer if not enough)
+                const topCount = Math.min(3, viableMiners.length);
+                const selectedIndex = Math.floor(Math.random() * topCount);
+                creep.memory.assignedMinerId = viableMiners[selectedIndex].id;
+            } else if (miners.length > 0) {
+                // If no miners have energy, just pick any random miner
+                creep.memory.assignedMinerId = miners[Math.floor(Math.random() * miners.length)].id;
             }
         }
         
