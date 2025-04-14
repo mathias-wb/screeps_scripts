@@ -8,8 +8,8 @@ module.exports = {
     POPULATION: {
         // Population will be determined dynamically based on energy sources
         miner: null, // One miner per source (set in room.manager)
-        harvester: 3,
-        builder: 1,
+        harvester: 2,
+        builder: 2,
         upgrader: 2
     },
     

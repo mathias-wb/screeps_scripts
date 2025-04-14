@@ -19,7 +19,7 @@ module.exports = {
                 this.harvestEnergy(creep, creep.room.find(FIND_SOURCES), storage);
                 break;
             case config.MODE.storing:
-                this.storeEnergy(creep, storage);
+                this.storeEnergy(creep, storage, miners);
                 break;
             case config.MODE.upgrading:
                 this.upgradeController(creep);
@@ -99,8 +99,26 @@ module.exports = {
                 creep.memory.assignedMinerId = miners[Math.floor(Math.random() * miners.length)].id;
             }
         }
+
+        // First check for dropped energy near miners
+        const droppedResources = [];
+        for (const miner of miners) {
+            const resources = miner.pos.findInRange(FIND_DROPPED_RESOURCES, 2);
+            droppedResources.push(...resources);
+        }
+
+        if (droppedResources.length > 0) {
+            // Sort by amount
+            droppedResources.sort((a, b) => b.amount - a.amount);
+
+            // Pick up the largest pile
+            if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
+                creepHelper.moveTo(creep, droppedResources[0]);
+            }
+            return;
+        }
         
-        // First check for containers near miners
+        // Then check for containers near miners
         const minerContainers = [];
         for (const miner of miners) {
             const nearbyContainers = miner.pos.findInRange(FIND_STRUCTURES, 1, {
@@ -120,24 +138,6 @@ module.exports = {
             // Withdraw from container with most energy
             if (creep.withdraw(minerContainers[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
                 creepHelper.moveTo(creep, minerContainers[0]);
-            }
-            return;
-        }
-
-        // Next check for dropped energy near miners
-        const droppedResources = [];
-        for (const miner of miners) {
-            const resources = miner.pos.findInRange(FIND_DROPPED_RESOURCES, 1);
-            droppedResources.push(...resources);
-        }
-
-        if (droppedResources.length > 0) {
-            // Sort by amount
-            droppedResources.sort((a, b) => b.amount - a.amount);
-
-            // Pick up the largest pile
-            if (creep.pickup(droppedResources[0]) === ERR_NOT_IN_RANGE) {
-                creepHelper.moveTo(creep, droppedResources[0]);
             }
             return;
         }
@@ -208,8 +208,9 @@ module.exports = {
      * Store energy in spawn, extensions, or storage
      * @param {Creep} creep - The harvester creep
      * @param {Array} storage - Storage structures in the room
+     * @param {Array} miners - Array of miner creeps
      */
-    storeEnergy: function(creep, storage) {
+    storeEnergy: function(creep, storage, miners) {
         // Display energy status
         creepHelper.say(creep);
 
@@ -285,8 +286,28 @@ module.exports = {
             }
         }
 
+        // Identify miner containers to exclude them
+        const minerContainerIds = {};
+        for (const miner of miners) {
+            const nearbyContainers = miner.pos.findInRange(FIND_STRUCTURES, 1, {
+                filter: s => s.structureType === STRUCTURE_CONTAINER
+            });
+            
+            for (const container of nearbyContainers) {
+                minerContainerIds[container.id] = true;
+            }
+        }
+
+        // Filter out containers that are near miners
+        const filteredStorage = storage.filter(s => {
+            if (s.structureType === STRUCTURE_CONTAINER) {
+                return !minerContainerIds[s.id]; // Only include if NOT a miner container
+            }
+            return true; // Include all other storage types
+        });
+
         // Sort storage by energy (least first to distribute evenly)
-        const emptyStorage = storage.filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
+        const emptyStorage = filteredStorage.filter(s => s.store.getFreeCapacity(RESOURCE_ENERGY) > 0)
             .sort((a, b) => a.store.getUsedCapacity(RESOURCE_ENERGY) - b.store.getUsedCapacity(RESOURCE_ENERGY));
 
         // Energy delivery priority: 1. Spawn 2. Extensions 3. Assigned Tower 4. Storage 5. Controller

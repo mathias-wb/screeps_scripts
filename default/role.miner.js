@@ -39,8 +39,21 @@ module.exports = {
         creep.harvest(source);
         creep.say(config.MODE.mining);
 
-        // Drop excess energy if inventory is getting full
-        if (creep.store.getFreeCapacity() < 20) {
+        // If we have energy and there's a container, transfer to container
+        if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && containers.length > 0) {
+            // Find the container with the most space
+            let targetContainer = containers[0];
+            if (containers.length > 1) {
+                targetContainer = _.max(containers, c => c.store.getFreeCapacity(RESOURCE_ENERGY));
+            }
+            
+            // Transfer energy to the container
+            if (targetContainer.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+                creep.transfer(targetContainer, RESOURCE_ENERGY);
+            }
+        }
+        // Only drop energy if we have no containers and inventory is full
+        else if (containers.length === 0 && creep.store.getFreeCapacity() < 20) {
             creep.drop(RESOURCE_ENERGY);
         }
     }

@@ -31,15 +31,32 @@ module.exports = {
 
         // First try to get energy from storage
         if (storage.length > 0) {
+            // Filter out containers that are near miners
+            const miners = creep.room.find(FIND_MY_CREEPS, {
+                filter: c => c.memory.role === "miner"
+            });
+            
+            const filteredStorage = storage.filter(structure => {
+                // Skip containers that are near miners
+                if (structure.structureType === STRUCTURE_CONTAINER) {
+                    for (const miner of miners) {
+                        if (structure.pos.inRangeTo(miner, 1)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
             // Sort by energy content (most first)
-            storage.sort((a, b) =>
+            filteredStorage.sort((a, b) =>
                 b.store.getUsedCapacity(RESOURCE_ENERGY) -
                 a.store.getUsedCapacity(RESOURCE_ENERGY)
             );
 
-            if (storage[0].store.getUsedCapacity(RESOURCE_ENERGY) > 50) {
-                if (creep.withdraw(storage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
-                    creepHelper.moveTo(creep, storage[0]);
+            if (filteredStorage.length > 0 && filteredStorage[0].store.getUsedCapacity(RESOURCE_ENERGY) > 50) {
+                if (creep.withdraw(filteredStorage[0], RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+                    creepHelper.moveTo(creep, filteredStorage[0]);
                     return;
                 }
             }
