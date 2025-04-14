@@ -15,10 +15,15 @@ module.exports = {
     
     // Creep body part configurations
     BODY: {
-        miner: [WORK, WORK, WORK, WORK, WORK, MOVE],  // 550 energy (mines 10 energy/second)
-        harvester: [CARRY, CARRY, CARRY, CARRY, WORK, MOVE, MOVE, MOVE, MOVE, MOVE],  // 550 energy
+        miner: [WORK, WORK, WORK, WORK, WORK,  // 500 (mines 10 energy/second)
+            MOVE, MOVE, MOVE, MOVE, MOVE],  // + 250 = 750 energy
+        harvester: [CARRY, CARRY, CARRY, CARRY, CARRY,  // 250
+            WORK, WORK, // + 200
+            MOVE, MOVE, MOVE, MOVE, MOVE, MOVE, MOVE],  // + 300 = 750 energy
         builder: [WORK, WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE],  // 550 energy
-        upgrader: [WORK, WORK, WORK, WORK, CARRY, MOVE, MOVE]  // 550 energy (focused on upgrading)
+        upgrader: [WORK, WORK, WORK, // 300
+            CARRY, CARRY, CARRY, // + 150
+            MOVE, MOVE, MOVE, MOVE, MOVE, MOVE]  // + 300 = 750 energy
     },
     
     // Mode symbols for visualization
